@@ -76,29 +76,22 @@ class MFAVerifyView(APIView):
 
 class CheckBotnetView(APIView):
     def get(self, request):
-        # Get the client's IP address
         ip_address = request.META.get('REMOTE_ADDR')
-
-        # Rate limiting logic
         cache_key = f"rate_limit_{ip_address}"
         request_count = cache.get(cache_key, 0)
         expiration = cache.get(f"{cache_key}_expiration", 0)
 
-        # Reset count if the minute has passed
         current_time = int(time.time())
         if current_time > expiration:
             request_count = 0
-            expiration = current_time + 60  # 1 minute expiration
+            expiration = current_time + 60
             cache.set(f"{cache_key}_expiration", expiration, timeout=60)
 
-        # Check rate limit: 10 requests per minute
         if request_count >= 10:
             return Response({"error": "Rate limit exceeded. Please try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        # Increment request count
         cache.set(cache_key, request_count + 1, timeout=60)
 
-        # Proceed with the request
         target = request.query_params.get('target', None)
         if not target:
             return Response({"error": "Target IP or domain is required."}, status=status.HTTP_400_BAD_REQUEST)
